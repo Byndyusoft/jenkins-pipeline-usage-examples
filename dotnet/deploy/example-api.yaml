@@ -1,0 +1,113 @@
+microservice:
+  kind: "Deployment"
+
+  env:
+    Logging__LogLevel__Default:
+      default: "warning"
+    ASPNETCORE_URLS:
+      default: "http://*:5000"
+    ASPNETCORE_ENVIRONMENT:
+      prod: "Production"
+      default: "Staging"
+    OTEL_EXPORTER_OTLP_ENDPOINT:
+      default: "http://jaeger-collector.jaeger:4317"
+
+  replicas:
+    default: 1
+    prod: 1
+
+  resourcesLimitsMemory:
+    default: 256Mi
+    prod: 256Mi
+  resourcesRequestsMemory:
+    default: 128Mi
+    prod: 128Mi
+  resourcesLimitsCPU:
+    default: 1
+    prod: 1
+  resourcesRequestsCPU:
+    default: 100m
+    prod: 1
+
+  imagePullSecrets:
+      - name: artifacts-registry
+
+  initContainers:
+    enabled: true
+    workingDir: /migrator
+    command: '["dotnet", "Migrator.dll"]'
+
+  prometheus:
+    enabled: true
+    sampleLimit: 10000
+
+  startupProbe:
+    enabled: true
+    path: /_startup
+    port: http
+    initialDelaySeconds: 3
+    failureThreshold: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+
+  livenessProbe:
+    enabled: true
+    path: /_healthz
+    port: http
+    periodSeconds: 60
+    timeoutSeconds: 5
+
+  readinessProbe:
+    enabled: true
+    path: /_readiness
+    port: http
+    periodSeconds: 10
+    timeoutSeconds: 5
+
+  servicePorts:
+    - port: 5000
+      targetPort: 5000
+      protocol: TCP
+      name: application
+    - name: http-metrics
+      protocol: TCP
+      port: 5001
+      targetPort: 5000
+
+  containerPorts:
+    - containerPort: 5000
+      name: http
+      protocol: TCP
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    labels: {}
+    annotations:
+      default:
+        cert-manager.io/cluster-issuer: letsencrypt
+    hosts:
+      - host:
+            default: example.com
+        path: /api
+        pathType: ImplementationSpecific
+        servicePorts: 8080
+    tls:
+      - secretName: sociotech-tls
+        hosts:
+          default: example.com
+
+  nodeSelector:
+    default:
+      node-role.kubernetes.io/worker: ""
+
+  affinity:
+    default:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app: sociotech-api

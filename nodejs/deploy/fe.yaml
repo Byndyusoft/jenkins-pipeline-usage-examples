@@ -1,0 +1,79 @@
+microservice:
+    kind: 'Deployment'
+
+    env:
+        NODE_ENV:
+            default: production
+
+    replicas:
+        default: 1
+        preprod: 2
+        prod: 2
+
+    resourcesLimitsMemory:
+        default: 256Mi
+    resourcesRequestsMemory:
+        default: 64Mi
+    resourcesLimitsCPU:
+        default: 1
+    resourcesRequestsCPU:
+        default: 0.2
+
+    initContainers:
+        enable: false
+        command: ''
+
+    servicePorts:
+        - port: 80
+          targetPort: 80
+          protocol: TCP
+          name: application
+
+    containerPorts:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+
+    livenessProbe:
+        enabled: false
+
+    readinessProbe:
+        httpGet:
+            port: 80
+
+    ingress:
+        enabled: true
+        ingressClassName: nginx
+        labels: {}
+        annotations:
+            default:
+                cert-manager.io/cluster-issuer: letsencrypt
+        hosts:
+            - host:
+                  prod: example.pro
+              path: /
+              pathType: ImplementationSpecific
+              servicePorts: 80
+        tls:
+            - secretName: example-tls
+              hosts:
+                  prod: example.pro
+
+    volumes: {}
+
+    nodeSelector:
+        default:
+            node-role.kubernetes.io/frontend: ''
+
+    tolerations: []
+
+    affinity:
+        default:
+            podAntiAffinity:
+                preferredDuringSchedulingIgnoredDuringExecution:
+                    - weight: 100
+                      podAffinityTerm:
+                          topologyKey: kubernetes.io/hostname
+                          labelSelector:
+                              matchLabels:
+                                  app: fe
