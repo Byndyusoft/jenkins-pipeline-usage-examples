@@ -1,0 +1,5 @@
+@Library(['bs-shared-library']) _
+
+env.debug=false
+
+gitHubFlow([artifact_name: "fe"])

@@ -1,0 +1,79 @@
+{{- if eq .Values.kind "CronJob" }}
+{{- $envname := .Values.environment }}
+{{- $microservicename := .Values.microservice.name }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $microservicename }}-cronjob
+  labels:
+    app: {{ $microservicename }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    project: {{ .Values.project }}
+    environment: {{ .Values.environment }}
+    {{- include "microservice.labels" . | nindent 4 }}
+  annotations:
+    git.commit.short: {{ .Values.gitCommitShort | quote }}
+    {{- with .Values.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  schedule: {{ .Values.schedule | quote }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          {{- if .Values.imagePullSecrets }}
+          imagePullSecrets: 
+          {{ toYaml .Values.imagePullSecrets | indent 2 }}
+          {{- end }}
+          {{- with pluck $envname .Values.nodeSelector | first | default .Values.nodeSelector.default }}
+          nodeSelector:
+          {{ toYaml . | indent 2 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+          {{ toYaml . | indent 2 }}
+          {{- end }}
+          {{- if .Values.priorityClassName }}
+          priorityClassName: {{ pluck $envname .Values.priorityClassName | first | default .Values.priorityClassName.default }}
+          {{- end }}
+          containers:
+            - name: {{ $microservicename }}
+              {{- if .Values.microservice.imageFolder }}
+              image: "{{ .Values.microservice.registryUrl }}/{{ .Values.project }}/{{ .Values.microservice.imageFolder }}/{{ .Values.microservice.image }}:{{ .Values.microservice.tag }}"
+              {{- else }}
+              image: "{{ .Values.microservice.registryUrl }}/{{ .Values.project }}/{{ .Values.microservice.image }}:{{ .Values.microservice.tag }}"
+              {{- end }}
+              imagePullPolicy: Always
+              env:
+                - name: SERVICE_NAME
+                  value: {{ $microservicename }}
+                {{- range $key, $value := .Values.env }}
+                {{- $environmentValue :=  pluck $envname $value | first | default $value.default | toString }}
+                {{- if $environmentValue }}
+                - name: {{ $key | squote }}
+                  value: {{ $environmentValue | squote }}
+                {{- end }}
+                {{- end }}
+              {{- if .Values.secret }}
+              envFrom:
+                - secretRef:
+                    name: {{ $microservicename }}
+              {{- end }}
+              resources:
+                limits:
+                  memory: {{ pluck $envname .Values.resourcesLimitsMemory | first | default .Values.resourcesLimitsMemory.default | quote }}
+                  {{- if .Values.resourcesLimitsCPU }}
+                  cpu: {{ pluck $envname .Values.resourcesLimitsCPU | first | default .Values.resourcesLimitsCPU.default | quote }}
+                  {{- end }}
+                requests:
+                  memory: {{ pluck $envname .Values.resourcesRequestsMemory | first | default .Values.resourcesRequestsMemory.default | quote }}
+                  cpu: {{ pluck $envname .Values.resourcesRequestsCPU | first | default .Values.resourcesRequestsCPU.default | quote }}
+          restartPolicy: OnFailure
+  startingDeadlineSeconds: {{ .Values.startingDeadlineSeconds | default 600 }}
+  concurrencyPolicy: {{ .Values.concurrencyPolicy | default "Allow" }}
+  successfulJobsHistoryLimit: {{ .Values.successfulJobsHistoryLimit | default 3 }}
+  failedJobsHistoryLimit: {{ .Values.failedJobsHistoryLimit | default 1 }}
+{{- end }}

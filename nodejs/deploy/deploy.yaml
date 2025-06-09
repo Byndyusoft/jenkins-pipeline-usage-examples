@@ -1,0 +1,17 @@
+clusterName: ["bs-01-stage", "bs-01-prod"]
+project: "bs-extractor-expert"
+registryCredentialsId: "artifacts-registry"
+registryImagePullUrl: "artifacts-docker-group.example.com"
+registryImagePushUrl: "artifacts-docker.example.com"
+registryPackageUrl: "https://artifacts.example.com/repository/pypi-hosted/"
+secret:
+  provider: vault
+  vaultUrl: "https://vault.example.com"
+  vaultAppRoleCredential: "jenkins-backend-role"
+serviceAccount: "deploy-agent"
+gitCredentialsId: "jenkins-cicd"
+yaml: |-
+  spec:
+    nodeSelector:
+      node-role.kubernetes.io/worker-pt: ""
+

@@ -1,0 +1,1 @@
+## Usage example for jenkins pipeline https://github.com/Byndyusoft/jenkins-pipeline.git
